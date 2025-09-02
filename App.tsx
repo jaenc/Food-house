@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Profile, Recipe, MenuPlan, AppSection, ShoppingList } from './types';
+import type { Profile, Recipe, MenuPlan, AppSection, ShoppingList, Meal } from './types';
 import { AppSection as AppSectionEnum } from './types';
 import { generateMealPlan, generateRecipeDetails, generateShoppingList } from './services/geminiService';
 import { ProfileManager } from './components/ProfileManager';
@@ -77,13 +77,57 @@ const App: React.FC = () => {
     setIsGeneratingShoppingList(true);
     setError(null);
     try {
-      const list = await generateShoppingList(menuPlan, profiles);
-      setShoppingList(list);
-      setIsShoppingListModalOpen(true);
+        let planParaLaLista = [...menuPlan];
+
+        // Find meals that need details to be fetched
+        const fetchPromises: Promise<{ dayIndex: number; mealType: 'comida' | 'cena'; details: Omit<Meal, 'nombre'>; }>[] = [];
+        planParaLaLista.forEach((day, dayIndex) => {
+            if (day.comida && !day.comida.ingredientes) {
+                fetchPromises.push(
+                    generateRecipeDetails(day.comida.nombre, profiles.length).then(details => ({
+                        dayIndex,
+                        mealType: 'comida',
+                        details,
+                    }))
+                );
+            }
+            if (day.cena && !day.cena.ingredientes) {
+                fetchPromises.push(
+                    generateRecipeDetails(day.cena.nombre, profiles.length).then(details => ({
+                        dayIndex,
+                        mealType: 'cena',
+                        details,
+                    }))
+                );
+            }
+        });
+
+        // If there are meals to fetch, fetch them all in parallel
+        if (fetchPromises.length > 0) {
+            const allDetails = await Promise.all(fetchPromises);
+            
+            // We need a deep copy to modify it before setting state
+            const updatedMenuPlan = JSON.parse(JSON.stringify(planParaLaLista)) as MenuPlan;
+
+            allDetails.forEach(({ dayIndex, mealType, details }) => {
+                const originalMeal = updatedMenuPlan[dayIndex][mealType];
+                if (originalMeal) {
+                    updatedMenuPlan[dayIndex][mealType] = { ...originalMeal, ...details };
+                }
+            });
+            
+            setMenuPlan(updatedMenuPlan); // Update the main state so the UI has the details too
+            planParaLaLista = updatedMenuPlan; // Use this complete plan for the next step
+        }
+
+        // Now, generate the shopping list with the potentially updated plan
+        const list = await generateShoppingList(planParaLaLista, profiles);
+        setShoppingList(list);
+        setIsShoppingListModalOpen(true);
     } catch (err: any) {
-      setError(err.message || 'Ocurrió un error al generar la lista de la compra.');
+        setError(err.message || 'Ocurrió un error al generar la lista de la compra.');
     } finally {
-      setIsGeneratingShoppingList(false);
+        setIsGeneratingShoppingList(false);
     }
   };
 
@@ -134,7 +178,7 @@ const App: React.FC = () => {
                 </div>
                 <button onClick={handleGenerateMenu} disabled={isLoading} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
                     {isLoading ? (
-                        <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generando...</>
+                        <><svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generando...</>
                     ) : '✨ Generar Menú con IA'}
                 </button>
             </div>
