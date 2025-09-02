@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
 import type { MenuPlan, Meal } from '../types';
-import { XIcon, DownloadIcon } from './Icons';
+import { XIcon, DownloadIcon, ClipboardListIcon } from './Icons';
 
 interface MenuDisplayProps {
   menuPlan: MenuPlan | null;
   onFetchDetails: (dayIndex: number, mealType: 'comida' | 'cena') => Promise<void>;
   isFetchingDetails: boolean;
+  onGenerateShoppingList: () => Promise<void>;
+  isGeneratingShoppingList: boolean;
 }
 
 declare const jspdf: any;
@@ -82,7 +84,7 @@ const RecipeDetailModal: React.FC<{ meal: Meal, onClose: () => void, isLoading: 
   );
 };
 
-export const MenuDisplay: React.FC<MenuDisplayProps> = ({ menuPlan, onFetchDetails, isFetchingDetails }) => {
+export const MenuDisplay: React.FC<MenuDisplayProps> = ({ menuPlan, onFetchDetails, isFetchingDetails, onGenerateShoppingList, isGeneratingShoppingList }) => {
   const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -154,9 +156,22 @@ export const MenuDisplay: React.FC<MenuDisplayProps> = ({ menuPlan, onFetchDetai
     <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-700">Tu Menú Personalizado</h2>
-        <button onClick={handleExportToPDF} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm">
-            <DownloadIcon /> Exportar a PDF
-        </button>
+        <div className="flex items-center gap-3">
+            <button 
+                onClick={onGenerateShoppingList} 
+                disabled={isGeneratingShoppingList}
+                className="flex items-center gap-2 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm disabled:bg-blue-300 disabled:cursor-wait"
+            >
+                {isGeneratingShoppingList ? (
+                    <><svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generando...</>
+                ) : (
+                    <><ClipboardListIcon /> Lista de la Compra</>
+                )}
+            </button>
+            <button onClick={handleExportToPDF} className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors text-sm">
+                <DownloadIcon /> Exportar a PDF
+            </button>
+        </div>
       </div>
       <div ref={menuRef} className="grid grid-cols-1 md:grid-cols-7 gap-1 p-2 bg-slate-50 rounded-lg">
         {menuPlan.map((day, index) => (
