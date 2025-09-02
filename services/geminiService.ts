@@ -77,12 +77,12 @@ export const generateMealPlan = async (
   startDate: Date,
   includeBreakfasts: boolean
 ): Promise<MenuPlan> => {
-  // Fix: Use process.env.API_KEY as per the coding guidelines to resolve the TypeScript error.
+  // Fix: Use process.env.API_KEY to retrieve the API key as per the coding guidelines.
   const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
     console.error("API_KEY environment variable is not set.");
-    throw new Error("La API key de Google no está configurada. Por favor, asegúrese de que la variable de entorno API_KEY esté configurada.");
+    throw new Error("La API key de Google no está configurada. Debes añadirla como una variable de entorno en tu plataforma de despliegue (ej. Vercel) para que la aplicación pueda funcionar.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
