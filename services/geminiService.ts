@@ -14,8 +14,16 @@ export const generateMealPlan = async (
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
-    throw new Error(errorData.message || "No se pudo generar el plan de comidas desde el servidor.");
+    let errorMessage = `Error del servidor (${response.status}) al generar el plan.`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || JSON.stringify(errorData);
+    } catch (e) {
+      const errorText = await response.text();
+      errorMessage = `Respuesta inesperada del servidor: ${errorText.slice(0, 200)}`;
+      console.error("Respuesta no JSON del servidor:", errorText);
+    }
+    throw new Error(errorMessage);
   }
   return response.json();
 };
@@ -28,8 +36,16 @@ export const generateRecipeDetails = async (mealName: string, familySize: number
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
-    throw new Error(errorData.message || `No se pudieron generar los detalles para la receta: ${mealName}.`);
+    let errorMessage = `Error del servidor (${response.status}) al obtener detalles para ${mealName}.`;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || JSON.stringify(errorData);
+    } catch (e) {
+      const errorText = await response.text();
+      errorMessage = `Respuesta inesperada del servidor para ${mealName}: ${errorText.slice(0, 200)}`;
+      console.error("Respuesta no JSON del servidor:", errorText);
+    }
+    throw new Error(errorMessage);
   }
   return response.json();
 };
@@ -42,8 +58,16 @@ export const generateShoppingList = async (menuPlan: MenuPlan, profiles: Profile
     });
 
     if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Error desconocido en el servidor.' }));
-        throw new Error(errorData.message || 'No se pudo generar la lista de la compra desde el servidor.');
+        let errorMessage = `Error del servidor (${response.status}) al generar la lista de la compra.`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          const errorText = await response.text();
+          errorMessage = `Respuesta inesperada del servidor: ${errorText.slice(0, 200)}`;
+          console.error("Respuesta no JSON del servidor:", errorText);
+        }
+        throw new Error(errorMessage);
     }
     return response.json();
 };
