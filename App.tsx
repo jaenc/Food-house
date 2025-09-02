@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import type { Profile, Recipe, MenuPlan, AppSection } from './types';
 import { AppSection as AppSectionEnum } from './types';
-import { generateMealPlan } from './services/geminiService';
+import { generateMealPlan, generateRecipeDetails } from './services/geminiService';
 import { ProfileManager } from './components/ProfileManager';
 import { RecipeManager } from './components/RecipeManager';
 import { MenuDisplay } from './components/MenuDisplay';
@@ -21,6 +20,7 @@ const App: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [menuPlan, setMenuPlan] = useState<MenuPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<AppSection>(AppSectionEnum.Generator);
   
@@ -43,6 +43,26 @@ const App: React.FC = () => {
       setError(err.message || 'Ocurrió un error inesperado.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleFetchMealDetails = async (dayIndex: number, mealType: 'comida' | 'cena') => {
+    if (!menuPlan) return;
+    
+    const meal = menuPlan[dayIndex][mealType];
+    if (!meal || meal.ingredientes) return; // Already has details
+
+    setIsFetchingDetails(true);
+    setError(null);
+    try {
+        const details = await generateRecipeDetails(meal.nombre, profiles.length);
+        const updatedMenuPlan = [...menuPlan];
+        updatedMenuPlan[dayIndex][mealType] = { ...meal, ...details };
+        setMenuPlan(updatedMenuPlan);
+    } catch (err: any) {
+        setError(err.message || `No se pudieron cargar los detalles de "${meal.nombre}".`);
+    } finally {
+        setIsFetchingDetails(false);
     }
   };
 
@@ -99,7 +119,11 @@ const App: React.FC = () => {
             </div>
             <div className="lg:col-span-2 space-y-6">
                 {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">{error}</div>}
-                <MenuDisplay menuPlan={menuPlan} />
+                <MenuDisplay 
+                    menuPlan={menuPlan} 
+                    onFetchDetails={handleFetchMealDetails}
+                    isFetchingDetails={isFetchingDetails}
+                />
             </div>
           </div>
         </div>
