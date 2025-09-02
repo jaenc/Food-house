@@ -76,11 +76,13 @@ export default async function handler(req: Request) {
             throw new Error("Respuesta vacía de la IA para los detalles de la receta.");
         }
 
-        // Parse to validate, then return the raw string from the AI.
-        // The client expects the full Meal object for the details.
-        JSON.parse(jsonString);
-        
-        return new Response(jsonString, {
+        const mealDetails: Partial<Meal> = JSON.parse(jsonString);
+
+        // El cliente ya tiene el nombre de la comida, por lo que no es necesario devolverlo.
+        // Esto alinea la respuesta con el tipo `Omit<Meal, 'nombre'>` en el servicio.
+        delete mealDetails.nombre;
+
+        return new Response(JSON.stringify(mealDetails), {
             status: 200,
             headers: { 'Content-Type': 'application/json' },
         });
