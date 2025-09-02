@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { MenuPlan, Profile } from '../types';
+import type { MenuPlan, Profile, Meal } from '../types';
 
 export const config = {
   runtime: 'edge',
@@ -35,24 +35,28 @@ const shoppingListSchema = {
 };
 
 const buildPrompt = (menuPlan: MenuPlan, profiles: Profile[]): string => {
-    const mealList = menuPlan.map(day => `${day.dia}: ${day.comida?.nombre} y ${day.cena?.nombre}`).join('\n');
     const familySize = profiles.length;
+
+    const fullMealDetails = menuPlan
+        .flatMap(day => [day.comida, day.cena])
+        .filter((meal): meal is Meal => meal !== null && meal.ingredientes !== undefined && meal.ingredientes.length > 0)
+        .map(meal => `Plato: ${meal.nombre}\nIngredientes: ${meal.ingredientes!.join(', ')}`)
+        .join('\n\n');
 
     return `
         Eres un nutricionista y chef experto creando una lista de la compra optimizada para una familia.
 
         TAREA:
-        Basado en el siguiente plan de comidas para ${familySize} personas, genera una lista de la compra completa y consolidada para toda la semana.
+        Basado en la siguiente lista de platos y sus ingredientes, genera una lista de la compra completa y consolidada. Las recetas ya están calculadas para el tamaño de la familia (${familySize} personas).
 
-        PLAN DE COMIDAS:
-        ${mealList}
+        LISTA DE PLATOS E INGREDIENTES:
+        ${fullMealDetails}
 
         INSTRUCCIONES:
-        1. Para cada plato del menú, calcula los ingredientes y las cantidades exactas necesarias para ${familySize} personas.
-        2. Consolida todos los ingredientes de todas las recetas. Si un ingrediente se usa en varios platos, suma las cantidades totales (ej. si necesitas 2 cebollas para una receta y 1 para otra, el total es 3 cebollas).
-        3. Organiza la lista final en categorías lógicas para facilitar la compra en un supermercado (ej: 'Frutas y Verduras', 'Carnes y Pescados', 'Despensa', 'Lácteos y Huevos', 'Otros').
-        4. Proporciona cantidades claras y específicas (ej. "500g de pechuga de pollo", "3 cebollas grandes", "1L de leche").
-        5. A cada item de la lista asígnale un ID único usando un UUID.
+        1. Consolida todos los ingredientes de la lista proporcionada. Si un ingrediente se usa en varios platos, suma las cantidades totales (ej. si una receta necesita "2 cebollas" y otra "1 cebolla", el total es "3 cebollas"). Presta atención a las unidades (gramos, litros, unidades).
+        2. Organiza la lista final en categorías lógicas para facilitar la compra en un supermercado (ej: 'Frutas y Verduras', 'Carnes y Pescados', 'Despensa', 'Lácteos y Huevos', 'Otros').
+        3. Asegúrate de que las cantidades en la lista final sean claras y agregadas.
+        4. A cada item de la lista asígnale un ID único usando un UUID.
 
         La salida debe ser un único objeto JSON válido, adhiriéndose estrictamente al esquema proporcionado. El idioma debe ser español (de España).
     `;
