@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import type { Profile, Recipe, MenuPlan, AppSection } from './types';
+import type { Profile, Recipe, MenuPlan, AppSection, ShoppingList } from './types';
 import { AppSection as AppSectionEnum } from './types';
-import { generateMealPlan, generateRecipeDetails } from './services/geminiService';
+import { generateMealPlan, generateRecipeDetails, generateShoppingList } from './services/geminiService';
 import { ProfileManager } from './components/ProfileManager';
 import { RecipeManager } from './components/RecipeManager';
 import { MenuDisplay } from './components/MenuDisplay';
+import { ShoppingListModal } from './components/ShoppingListModal';
 import { UserGroupIcon, BookOpenIcon, CalendarIcon } from './components/Icons';
 
 // Initial state with default family profiles
@@ -27,6 +28,11 @@ const App: React.FC = () => {
   const [duration, setDuration] = useState(7);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [includeBreakfasts, setIncludeBreakfasts] = useState(false);
+
+  // State for Shopping List
+  const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
+  const [isShoppingListModalOpen, setIsShoppingListModalOpen] = useState(false);
+  const [isGeneratingShoppingList, setIsGeneratingShoppingList] = useState(false);
 
   const handleGenerateMenu = async () => {
     if (profiles.length === 0) {
@@ -63,6 +69,21 @@ const App: React.FC = () => {
         setError(err.message || `No se pudieron cargar los detalles de "${meal.nombre}".`);
     } finally {
         setIsFetchingDetails(false);
+    }
+  };
+  
+  const handleGenerateShoppingList = async () => {
+    if (!menuPlan) return;
+    setIsGeneratingShoppingList(true);
+    setError(null);
+    try {
+      const list = await generateShoppingList(menuPlan, profiles);
+      setShoppingList(list);
+      setIsShoppingListModalOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'Ocurrió un error al generar la lista de la compra.');
+    } finally {
+      setIsGeneratingShoppingList(false);
     }
   };
 
@@ -123,6 +144,8 @@ const App: React.FC = () => {
                     menuPlan={menuPlan} 
                     onFetchDetails={handleFetchMealDetails}
                     isFetchingDetails={isFetchingDetails}
+                    onGenerateShoppingList={handleGenerateShoppingList}
+                    isGeneratingShoppingList={isGeneratingShoppingList}
                 />
             </div>
           </div>
@@ -135,8 +158,16 @@ const App: React.FC = () => {
         <div className={activeSection === AppSectionEnum.Recipes ? 'block' : 'hidden'}>
             <RecipeManager recipes={recipes} setRecipes={setRecipes} />
         </div>
-
       </main>
+      
+      {shoppingList && (
+        <ShoppingListModal
+          isOpen={isShoppingListModalOpen}
+          onClose={() => setIsShoppingListModalOpen(false)}
+          shoppingList={shoppingList}
+          setShoppingList={setShoppingList}
+        />
+      )}
     </div>
   );
 };
