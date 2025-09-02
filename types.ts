@@ -40,3 +40,18 @@ export enum AppSection {
   Profiles = 'PROFILES',
   Recipes = 'RECIPES',
 }
+
+export interface ShoppingListItem {
+  id: string;
+  nombre: string;
+  cantidad: string;
+}
+
+export interface ShoppingListCategory {
+  nombre: string;
+  items: ShoppingListItem[];
+}
+
+export interface ShoppingList {
+  categorias: ShoppingListCategory[];
+}
