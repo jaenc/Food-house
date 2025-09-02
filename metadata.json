@@ -1,0 +1,5 @@
+{
+  "name": "Comida Casa AI Planner",
+  "description": "An intelligent weekly and bi-weekly meal planner that generates personalized menus for your family. It leverages AI to incorporate nutritional recommendations, user profiles, and family recipes, with a focus on seasonal Spanish ingredients.",
+  "requestFramePermissions": []
+}
