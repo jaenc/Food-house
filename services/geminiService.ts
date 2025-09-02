@@ -15,11 +15,12 @@ export const generateMealPlan = async (
 
   if (!response.ok) {
     let errorMessage = `Error del servidor (${response.status}) al generar el plan.`;
+    const errorText = await response.text(); // Leer el cuerpo UNA SOLA VEZ
     try {
-      const errorData = await response.json();
+      const errorData = JSON.parse(errorText); // Intentar analizar el texto como JSON
       errorMessage = errorData.message || JSON.stringify(errorData);
     } catch (e) {
-      const errorText = await response.text();
+      // Si falla, es porque no era JSON, usamos el texto directamente
       errorMessage = `Respuesta inesperada del servidor: ${errorText.slice(0, 200)}`;
       console.error("Respuesta no JSON del servidor:", errorText);
     }
@@ -37,11 +38,12 @@ export const generateRecipeDetails = async (mealName: string, familySize: number
 
   if (!response.ok) {
     let errorMessage = `Error del servidor (${response.status}) al obtener detalles para ${mealName}.`;
+    const errorText = await response.text(); // Leer el cuerpo UNA SOLA VEZ
     try {
-      const errorData = await response.json();
+      const errorData = JSON.parse(errorText); // Intentar analizar el texto como JSON
       errorMessage = errorData.message || JSON.stringify(errorData);
     } catch (e) {
-      const errorText = await response.text();
+       // Si falla, es porque no era JSON, usamos el texto directamente
       errorMessage = `Respuesta inesperada del servidor para ${mealName}: ${errorText.slice(0, 200)}`;
       console.error("Respuesta no JSON del servidor:", errorText);
     }
@@ -59,11 +61,12 @@ export const generateShoppingList = async (menuPlan: MenuPlan, profiles: Profile
 
     if (!response.ok) {
         let errorMessage = `Error del servidor (${response.status}) al generar la lista de la compra.`;
+        const errorText = await response.text(); // Leer el cuerpo UNA SOLA VEZ
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(errorText); // Intentar analizar el texto como JSON
           errorMessage = errorData.message || JSON.stringify(errorData);
         } catch (e) {
-          const errorText = await response.text();
+           // Si falla, es porque no era JSON, usamos el texto directamente
           errorMessage = `Respuesta inesperada del servidor: ${errorText.slice(0, 200)}`;
           console.error("Respuesta no JSON del servidor:", errorText);
         }
