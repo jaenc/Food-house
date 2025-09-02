@@ -1,35 +1,38 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import type { Profile, Recipe, MenuPlan } from '../types';
+import type { Profile, Recipe, MenuPlan, Meal } from '../types';
 
-const responseSchema = {
+// Schema for the initial plan (names only)
+const menuPlanSchema = {
   type: Type.ARRAY,
   items: {
     type: Type.OBJECT,
     properties: {
-      dia: { type: Type.STRING, description: "Day of the week in Spanish (e.g., 'Lunes')." },
-      fecha: { type: Type.STRING, description: "Date in YYYY-MM-DD format." },
-      comida: {
-        type: Type.OBJECT,
-        properties: {
-          nombre: { type: Type.STRING },
-          ingredientes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          preparacion: { type: Type.STRING },
-          infoNutricional: { type: Type.STRING, description: "Caloric, nutritional composition, and properties of the food." },
-          comentarioMotivador: { type: Type.STRING, description: "A science-based motivational comment about the recipe's benefits." },
-        },
-      },
-      cena: {
-        type: Type.OBJECT,
-        properties: {
-          nombre: { type: Type.STRING },
-          ingredientes: { type: Type.ARRAY, items: { type: Type.STRING } },
-          preparacion: { type: Type.STRING },
-          infoNutricional: { type: Type.STRING, description: "Caloric, nutritional composition, and properties of the food." },
-          comentarioMotivador: { type: Type.STRING, description: "A science-based motivational comment about the recipe's benefits." },
-        },
-      },
+      dia: { type: Type.STRING },
+      fecha: { type: Type.STRING },
+      comida: { type: Type.OBJECT, properties: { nombre: { type: Type.STRING } } },
+      cena: { type: Type.OBJECT, properties: { nombre: { type: Type.STRING } } },
     },
   },
+};
+
+// Schema for the detailed recipe of a single meal
+const recipeDetailsSchema = {
+    type: Type.OBJECT,
+    properties: {
+        nombre: { type: Type.STRING },
+        ingredientes: { type: Type.ARRAY, items: { type: Type.STRING } },
+        preparacion: { type: Type.STRING },
+        infoNutricional: {
+            type: Type.OBJECT,
+            properties: {
+                calorias: { type: Type.NUMBER },
+                proteinas: { type: Type.NUMBER },
+                carbohidratos: { type: Type.NUMBER },
+                grasas: { type: Type.NUMBER },
+            }
+        },
+        comentarioMotivador: { type: Type.STRING, description: "A brief, encouraging tip from a nutritionist's perspective about this specific dish." }
+    }
 };
 
 const buildPrompt = (profiles: Profile[], recipes: Recipe[], duration: number, startDate: Date, includeBreakfasts: boolean): string => {
@@ -64,9 +67,18 @@ const buildPrompt = (profiles: Profile[], recipes: Recipe[], duration: number, s
     TASK:
     Generate a ${duration}-day meal plan starting on ${startDate.toISOString().split('T')[0]}.
     The output must be a valid JSON array of objects, strictly adhering to the provided schema.
-    For each dish, provide detailed nutritional information and a science-based motivational comment.
+    For each day, provide ONLY the name of the dish for lunch ('comida') and dinner ('cena'). DO NOT generate ingredients or preparation steps in this initial request.
     The language must be Spanish (from Spain).
   `;
+};
+
+const getApiKey = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("API_KEY environment variable is not set.");
+    throw new Error("La API key de Google no está configurada. Debes añadirla como una variable de entorno en tu plataforma de despliegue (ej. Vercel) para que la aplicación pueda funcionar.");
+  }
+  return apiKey;
 };
 
 export const generateMealPlan = async (
@@ -76,14 +88,7 @@ export const generateMealPlan = async (
   startDate: Date,
   includeBreakfasts: boolean
 ): Promise<MenuPlan> => {
-  const apiKey = import.meta.env.VITE_API_KEY;
-
-  if (!apiKey) {
-    console.error("VITE_API_KEY environment variable is not set.");
-    throw new Error("La API key de Google no está configurada. Debes añadirla como una variable de entorno en tu plataforma de despliegue (ej. Vercel) para que la aplicación pueda funcionar.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = buildPrompt(profiles, recipes, duration, startDate, includeBreakfasts);
 
   try {
@@ -92,14 +97,13 @@ export const generateMealPlan = async (
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: responseSchema,
+        responseSchema: menuPlanSchema,
       },
     });
 
     const jsonString = response.text;
-
     if (!jsonString) {
-        throw new Error("La respuesta del modelo de IA estaba vacía. Esto puede ocurrir si la solicitud es demasiado compleja.");
+        throw new Error("La respuesta del modelo de IA estaba vacía.");
     }
     
     const parsedPlan: MenuPlan = JSON.parse(jsonString);
@@ -107,6 +111,50 @@ export const generateMealPlan = async (
 
   } catch (error) {
     console.error("Error generating meal plan:", error);
-    throw new Error("No se pudo generar el menú. La IA tardó demasiado o encontró un error. Esto puede deberse a un problema con la API Key o a que la solicitud es demasiado compleja para el modelo. Revisa tu API Key y prueba de nuevo, quizás con una duración más corta.");
+    throw new Error("No se pudo generar el plan de comidas. Revisa tu API Key y la configuración.");
   }
+};
+
+export const generateRecipeDetails = async (mealName: string, familySize: number): Promise<Omit<Meal, 'nombre'>> => {
+    const ai = new GoogleGenAI({ apiKey: getApiKey() });
+    const prompt = `
+        You are an expert nutritionist and chef.
+        Provide a detailed recipe for the dish: "${mealName}".
+        The recipe should be for a family of ${familySize} people.
+        
+        The output must be a single valid JSON object, strictly adhering to the provided schema.
+        It must include:
+        1. 'nombre': The exact name of the dish as provided.
+        2. 'ingredientes': A list of ingredients with quantities.
+        3. 'preparacion': Step-by-step cooking instructions.
+        4. 'infoNutricional': An estimated nutritional analysis per serving (calories, protein, carbs, fat).
+        5. 'comentarioMotivador': A brief, encouraging tip from a nutritionist about this dish.
+        
+        The language must be Spanish (from Spain).
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: recipeDetailsSchema,
+            },
+        });
+
+        const jsonString = response.text;
+        if (!jsonString) {
+            throw new Error("Empty response from AI for recipe details.");
+        }
+
+        const parsedDetails: Meal = JSON.parse(jsonString);
+        // We already have the name, so we just return the other details.
+        const { nombre, ...details } = parsedDetails;
+        return details;
+
+    } catch (error) {
+        console.error(`Error generating details for "${mealName}":`, error);
+        throw new Error(`No se pudieron generar los detalles para la receta: ${mealName}.`);
+    }
 };
