@@ -11,7 +11,10 @@ const recipeDetailsSchema = {
     properties: {
         nombre: { type: Type.STRING },
         ingredientes: { type: Type.ARRAY, items: { type: Type.STRING } },
-        preparacion: { type: Type.STRING },
+        preparacion: { 
+            type: Type.STRING,
+            description: "Instrucciones de cocinado paso a paso. Cada paso numerado debe estar separado del siguiente por un carácter de nueva línea ('\\n')."
+        },
         infoNutricional: {
             type: Type.OBJECT,
             properties: {
@@ -52,7 +55,7 @@ export default async function handler(req: Request) {
             Debe incluir:
             1. 'nombre': El nombre exacto del plato proporcionado.
             2. 'ingredientes': Una lista de ingredientes con cantidades.
-            3. 'preparacion': Instrucciones de cocinado paso a paso.
+            3. 'preparacion': Instrucciones de cocinado paso a paso. MUY IMPORTANTE: Separa cada paso numerado con un único salto de línea ('\\n') para que cada paso aparezca en una línea distinta.
             4. 'infoNutricional': Un análisis nutricional estimado por ración (calorías, proteínas, carbohidratos, grasas).
             5. 'comentarioMotivador': Un consejo breve y motivador de un nutricionista sobre este plato.
             
