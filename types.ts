@@ -1,4 +1,3 @@
-
 export interface Profile {
   id: string;
   name: string;
@@ -16,10 +15,15 @@ export interface Recipe {
 
 export interface Meal {
   nombre: string;
-  ingredientes: string[];
-  preparacion: string;
-  infoNutricional: string;
-  comentarioMotivador: string;
+  ingredientes?: string[];
+  preparacion?: string;
+  infoNutricional?: {
+    calorias: number;
+    proteinas: number;
+    carbohidratos: number;
+    grasas: number;
+  };
+  comentarioMotivador?: string;
 }
 
 export interface DayMenu {
